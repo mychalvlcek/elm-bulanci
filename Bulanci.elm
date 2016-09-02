@@ -13,12 +13,17 @@ import Color exposing (..)
 
 -- MODEL
 
-type alias Model =
+type alias Player =
   { x : Float
   , y : Float
   , dir : Direction
   , keys : Keys 
+  }
+
+type alias Model =
+  { keys : Keys 
   , size : Size
+  , players: List Player
   }
 
 
@@ -28,15 +33,16 @@ type Direction
   | Top
   | Bottom
 
-type alias Keys = { x:Int, y:Int }
+type alias Keys = 
+  { x:Int
+  , y:Int 
+  }
 
 init : Model
 init =
-  { x = 0
-  , y = 0 
-  , dir = Right
-  , keys = Keys 0 0 
-  , size = Size 0 0 
+  { size = Size 0 0 
+  , keys = Keys 0 0
+  , players = [Player 0 0 Top (Keys 0 0)]
   }
 
 
@@ -77,27 +83,26 @@ update msg model =
 
 step : Float -> Model -> Model
 step dt model =
-  model
-    |> walk 
-    |> physics dt
+  { model | players = List.map (\player -> player |> walk |> physics dt) model.players }
 
-physics : Float -> Model -> Model
-physics dt model =
-  { model |
-    x = model.x + toFloat model.keys.x * 2,
-    y = model.y + toFloat model.keys.y * 2
+
+physics : Float -> Player -> Player
+physics dt player =
+  { player |
+    x = player.x + toFloat player.keys.x * 2,
+    y = player.y + toFloat player.keys.y * 2
   }
 
-walk : Model -> Model
-walk model =
-  { model |
+walk : Player -> Player
+walk player =
+  { player |
     dir = 
-      case (compare model.keys.x 0, compare model.keys.y 0) of 
+      case (compare player.keys.x 0, compare player.keys.y 0) of 
         (LT,EQ) -> Left
         (GT,EQ) -> Right
         (EQ,LT) -> Bottom
         (EQ,GT) -> Top
-        _ -> model.dir -- default direction
+        _ -> player.dir -- default direction
   }
 
 
@@ -108,16 +113,18 @@ view model =
   let 
     (w', h') = (model.size.width, model.size.height)
     (w, h) = (toFloat w', toFloat h')
-    verb = 
-      case (model.keys.x > 0 || model.keys.y > 0) of
-        True -> "" -- walk
-        False -> "" -- stand 
+    verb = ""
+    dir = "left"
+    -- verb = 
+    --   case (model.keys.x > 0 || model.keys.y > 0) of
+    --     True -> "" -- walk
+    --     False -> "" -- stand 
 
-    dir = case model.dir of
-            Left -> "left"
-            Right -> "right"
-            Top -> "back"
-            Bottom -> "front"
+    -- dir = case model.dir of
+    --         Left -> "left"
+    --         Right -> "right"
+    --         Top -> "back"
+    --         Bottom -> "front"
 
     src  = "images/"++ verb ++ "/" ++ dir ++ ".png"
 
@@ -128,7 +135,7 @@ view model =
             |> filled (rgb 74 167 43)
         , marioImage
             |> toForm
-            |> move (model.x, model.y)
+            -- |> move (model.x, model.y)
         ]
     |> toHtml
 
