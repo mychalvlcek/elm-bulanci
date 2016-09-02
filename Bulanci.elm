@@ -42,7 +42,10 @@ init : Model
 init =
   { size = Size 0 0 
   , keys = Keys 0 0
-  , players = [Player 0 0 Top (Keys 0 0)]
+  , players = 
+    [ Player 0 0 Top (Keys 0 0)
+    , Player 100 -100 Left (Keys 0 0)
+    ]
   }
 
 
@@ -108,35 +111,39 @@ walk player =
 
 -- VIEW 
 
+renderImage player = 
+  let
+    verb =
+      case (player.keys.x > 0 || player.keys.y > 0) of
+        True -> ""
+        False -> ""
+
+    dir = case player.dir of
+            Left -> "left"
+            Right -> "right"
+            Top -> "back"
+            Bottom -> "front"
+
+    src  = "images/"++ verb ++ "/" ++ dir ++ ".png"
+    bulanek = image 35 35 src
+  in
+    bulanek
+      |> toForm
+      |> move (player.x, player.y)
+
 view : Model -> Html msg
 view model =
   let 
     (w', h') = (model.size.width, model.size.height)
     (w, h) = (toFloat w', toFloat h')
-    verb = ""
-    dir = "left"
-    -- verb = 
-    --   case (model.keys.x > 0 || model.keys.y > 0) of
-    --     True -> "" -- walk
-    --     False -> "" -- stand 
-
-    -- dir = case model.dir of
-    --         Left -> "left"
-    --         Right -> "right"
-    --         Top -> "back"
-    --         Bottom -> "front"
-
-    src  = "images/"++ verb ++ "/" ++ dir ++ ".png"
-
-    marioImage = image 35 35 src
+   
   in
     collage w' h'
-        [ rect w h
-            |> filled (rgb 74 167 43)
-        , marioImage
-            |> toForm
-            -- |> move (model.x, model.y)
-        ]
+        (List.concat
+        [
+          [ rect w h |> filled (rgb 74 167 43) ]
+        , List.map renderImage model.players
+        ])
     |> toHtml
 
 -- WIRING
