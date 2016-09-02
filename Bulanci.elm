@@ -135,7 +135,7 @@ view model =
   in
     collage w' h'
         [ rect w h
-            |> filled (rgb 174 238 238)
+            |> filled (rgb 74 167 43)
         , marioImage
             |> toForm
             |> move (model.x, model.y)
