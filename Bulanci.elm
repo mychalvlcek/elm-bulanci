@@ -16,8 +16,7 @@ import Color exposing (..)
 type alias Player =
   { x : Float
   , y : Float
-  , dir : Direction
-  , keys : Keys 
+  , dir : Direction 
   }
 
 type alias Model =
@@ -43,8 +42,8 @@ init =
   { size = Size 0 0 
   , keys = Keys 0 0
   , players = 
-    [ Player 0 0 Top (Keys 0 0)
-    , Player 100 -100 Left (Keys 0 0)
+    [ Player 0 0 Top
+    , Player 100 -100 Left
     ]
   }
 
@@ -86,21 +85,21 @@ update msg model =
 
 step : Float -> Model -> Model
 step dt model =
-  { model | players = List.map (\player -> player |> walk |> physics dt) model.players }
+  { model | players = List.map (\player -> player |> walk model.keys |> physics dt model.keys) model.players }
 
 
-physics : Float -> Player -> Player
-physics dt player =
+physics : Float -> Keys -> Player -> Player
+physics dt keys player =
   { player |
-    x = player.x + toFloat player.keys.x * 2,
-    y = player.y + toFloat player.keys.y * 2
+    x = player.x + toFloat keys.x * 2,
+    y = player.y + toFloat keys.y * 2
   }
 
-walk : Player -> Player
-walk player =
+walk : Keys -> Player -> Player
+walk keys player =
   { player |
     dir = 
-      case (compare player.keys.x 0, compare player.keys.y 0) of 
+      case (compare keys.x 0, compare keys.y 0) of 
         (LT,EQ) -> Left
         (GT,EQ) -> Right
         (EQ,LT) -> Bottom
@@ -111,10 +110,10 @@ walk player =
 
 -- VIEW 
 
-renderImage player = 
+renderImage keys player = 
   let
     verb =
-      case (player.keys.x > 0 || player.keys.y > 0) of
+      case (keys.x > 0 || keys.y > 0) of
         True -> ""
         False -> ""
 
@@ -124,7 +123,7 @@ renderImage player =
             Top -> "back"
             Bottom -> "front"
 
-    src  = "images/"++ verb ++ "/" ++ dir ++ ".png"
+    src  = "images/" ++ verb ++ "/" ++ dir ++ ".png"
     bulanek = image 35 35 src
   in
     bulanek
@@ -142,7 +141,7 @@ view model =
         (List.concat
         [
           [ rect w h |> filled (rgb 74 167 43) ]
-        , List.map renderImage model.players
+        , List.map (\player -> renderImage model.keys player) model.players
         ])
     |> toHtml
 
