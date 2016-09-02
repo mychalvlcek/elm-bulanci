@@ -2,6 +2,7 @@ import Html exposing (..)
 import Keyboard
 import Window exposing (Size)
 import AnimationFrame
+import Dict
 
 import Task 
 import Html.App as App
@@ -13,6 +14,7 @@ import Color exposing (..)
 
 -- MODEL
 
+
 type alias Player =
   { x : Float
   , y : Float
@@ -22,7 +24,7 @@ type alias Player =
 type alias Model =
   { keys : Keys 
   , size : Size
-  , players: List Player
+  , players: Dict.Dict String Player
   }
 
 
@@ -41,9 +43,9 @@ init : Model
 init =
   { size = Size 0 0 
   , keys = Keys 0 0
-  , players = 
-    [ Player 0 0 Top
-    , Player 100 -100 Left
+  , players = Dict.fromList
+    [ ("a", Player 0 0 Top)
+    , ("b", Player 100 -100 Left)
     ]
   }
 
@@ -85,7 +87,16 @@ update msg model =
 
 step : Float -> Model -> Model
 step dt model =
-  { model | players = List.map (\player -> player |> walk model.keys |> physics dt model.keys) model.players }
+  { model
+  | players = 
+    (Dict.fromList 
+      (List.map (\(key, player) -> 
+        (key,
+          player
+            |> walk model.keys
+            |> physics dt model.keys))
+      (Dict.toList model.players)))
+  }
 
 
 physics : Float -> Keys -> Player -> Player
@@ -141,7 +152,7 @@ view model =
         (List.concat
         [
           [ rect w h |> filled (rgb 74 167 43) ]
-        , List.map (\player -> renderImage model.keys player) model.players
+        , List.map (\player -> renderImage model.keys player) (Dict.values model.players)
         ])
     |> toHtml
 
