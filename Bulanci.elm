@@ -132,18 +132,13 @@ view model =
     src  = "images/"++ verb ++ "/" ++ dir ++ ".png"
 
     marioImage = image 35 35 src
-
-    groundY = 62 - h/2
   in
     collage w' h'
         [ rect w h
             |> filled (rgb 174 238 238)
-        , rect w 50
-            |> filled (rgb 74 167 43)
-            |> move (0, 24 - h/2)
         , marioImage
             |> toForm
-            |> move (model.x, model.y + groundY)
+            |> move (model.x, model.y)
         ]
     |> toHtml
 
