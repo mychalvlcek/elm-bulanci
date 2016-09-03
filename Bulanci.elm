@@ -13,21 +13,6 @@ import Color exposing (..)
 
 
 -- MODEL
-
-
-type alias Player =
-  { x : Float
-  , y : Float
-  , dir : Direction 
-  }
-
-type alias Model =
-  { keys : Keys 
-  , size : Size
-  , players: Dict.Dict String Player
-  }
-
-
 type Direction 
   = Left
   | Right
@@ -39,10 +24,24 @@ type alias Keys =
   , y:Int 
   }
 
+type alias Player =
+  { x : Float
+  , y : Float
+  , dir : Direction 
+  }
+
+type alias Model =
+  { keys : Keys 
+  , size : Size
+  , movementAngle : Int
+  , players: Dict.Dict String Player
+  }
+
 init : Model
 init =
   { size = Size 0 0 
   , keys = Keys 0 0
+  , movementAngle = 0
   , players = Dict.fromList
     [ ("a", Player 0 0 Top)
     , ("b", Player 100 -100 Left)
@@ -88,7 +87,11 @@ update msg model =
 step : Float -> Model -> Model
 step dt model =
   { model
-  | players = 
+  | movementAngle =
+      case model.movementAngle > 12 of
+        True -> -12
+        False -> model.movementAngle + 2
+  , players = 
     (Dict.fromList 
       (List.map (\(key, player) -> 
         (key,
@@ -102,8 +105,8 @@ step dt model =
 physics : Float -> Keys -> Player -> Player
 physics dt keys player =
   { player |
-    x = player.x + toFloat keys.x * 2,
-    y = player.y + toFloat keys.y * 2
+    x = player.x + toFloat keys.x * dt / 6,
+    y = player.y + toFloat keys.y * dt / 6
   }
 
 walk : Keys -> Player -> Player
@@ -121,24 +124,28 @@ walk keys player =
 
 -- VIEW 
 
-renderImage keys player = 
+renderImage keys movementAngle player = 
   let
-    verb =
-      case (keys.x > 0 || keys.y > 0) of
-        True -> ""
-        False -> ""
+    movementType =
+      case (keys.x /= 0 || keys.y /= 0) of
+        True -> "gun"
+        False -> "reload"
+    directionRotation =
+      case player.dir of
+        Left -> 180
+        Right -> 0
+        Top -> 90
+        Bottom -> -90
+    extraAngle =
+      case (keys.x /= 0 || keys.y /= 0) of
+        True -> toFloat movementAngle / 3
+        False -> 0
 
-    dir = case player.dir of
-            Left -> "left"
-            Right -> "right"
-            Top -> "back"
-            Bottom -> "front"
-
-    src  = "images/" ++ verb ++ "/" ++ dir ++ ".png"
-    bulanek = image 35 35 src
+    bulanek = image 35 43 ("images/characters/man-old/manOld_" ++ movementType ++ ".png")
   in
     bulanek
       |> toForm
+      |> rotate (degrees (directionRotation + extraAngle))
       |> move (player.x, player.y)
 
 view : Model -> Html msg
@@ -152,7 +159,7 @@ view model =
         (List.concat
         [
           [ rect w h |> filled (rgb 74 167 43) ]
-        , List.map (\player -> renderImage model.keys player) (Dict.values model.players)
+        , List.map (\player -> renderImage model.keys model.movementAngle player) (Dict.values model.players)
         ])
     |> toHtml
 
