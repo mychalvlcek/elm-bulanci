@@ -21,7 +21,9 @@ type Direction
 
 type alias Keys = 
   { x:Int
-  , y:Int 
+  , y:Int
+  , p2x : Int
+  , p2y : Int
   }
 
 type alias Player =
@@ -40,7 +42,7 @@ type alias Model =
 init : Model
 init =
   { size = Size 0 0 
-  , keys = Keys 0 0
+  , keys = Keys 0 0 0 0
   , movementAngle = 0
   , players = Dict.fromList
     [ ("a", Player 0 0 Top)
@@ -60,15 +62,25 @@ type Msg
 
 updateKeys : Int -> Keys -> Keys
 updateKeys key keys =
-  case key of 
-    37 -> { keys | x = -1} -- left arrow 
-    39 -> { keys | x = 1} -- right arrow
-    38 -> { keys | y = 1} -- up arrow
-    40 -> { keys | y = -1} -- bottom arrow
+  case key of
+    -- arrow keys
+    37 -> { keys | x = -1}
+    39 -> { keys | x = 1}
+    38 -> { keys | y = 1}
+    40 -> { keys | y = -1}
     (-37) -> { keys | x = 0}
     (-39) -> { keys | x = 0}
     (-38) -> { keys | y = 0}
     (-40) -> { keys | y = 0}
+    -- WSAD
+    65 -> { keys | p2x = -1}
+    68 -> { keys | p2x = 1}
+    87 -> { keys | p2y = 1}
+    83 -> { keys | p2y = -1}
+    (-65) -> { keys | p2x = 0}
+    (-68) -> { keys | p2x = 0}
+    (-83) -> { keys | p2y = 0}
+    (-87) -> { keys | p2y = 0}
     _ -> keys 
 
 update : Msg -> Model -> Model
@@ -96,24 +108,33 @@ step dt model =
       (List.map (\(key, player) -> 
         (key,
           player
-            |> walk model.keys
-            |> physics dt model.keys))
+            |> walk model.keys key
+            |> physics dt model.keys key))
       (Dict.toList model.players)))
   }
 
 
-physics : Float -> Keys -> Player -> Player
-physics dt keys player =
+physics : Float -> Keys -> String -> Player -> Player
+physics dt keys playerId player =
+  let playerKeys =
+    case playerId == "a" of
+      True -> (keys.x, keys.y)
+      False -> (keys.p2x, keys.p2y)
+  in
   { player |
-    x = player.x + toFloat keys.x * dt / 6,
-    y = player.y + toFloat keys.y * dt / 6
+    x = player.x + toFloat (fst playerKeys) * dt / 6,
+    y = player.y + toFloat (snd playerKeys) * dt / 6
   }
 
-walk : Keys -> Player -> Player
-walk keys player =
+walk : Keys -> String -> Player -> Player
+walk keys playerId player =
+  let playerKeys =
+    case playerId == "a" of
+      True -> (compare keys.x 0, compare keys.y 0)
+      False -> (compare keys.p2x 0, compare keys.p2y 0)
+  in
   { player |
-    dir = 
-      case (compare keys.x 0, compare keys.y 0) of 
+    dir = case playerKeys of
         (LT,EQ) -> Left
         (GT,EQ) -> Right
         (EQ,LT) -> Bottom
@@ -124,10 +145,14 @@ walk keys player =
 
 -- VIEW 
 
-renderImage keys movementAngle player = 
+renderImage keys playerId movementAngle player =
   let
+    playerKeys =
+      case playerId == "a" of
+        True -> (keys.x /= 0 || keys.y /= 0)
+        False -> (keys.p2x /= 0 || keys.p2y /= 0)
     movementType =
-      case (keys.x /= 0 || keys.y /= 0) of
+      case playerKeys of
         True -> "gun"
         False -> "reload"
     directionRotation =
@@ -137,7 +162,7 @@ renderImage keys movementAngle player =
         Top -> 90
         Bottom -> -90
     extraAngle =
-      case (keys.x /= 0 || keys.y /= 0) of
+      case playerKeys of
         True -> toFloat movementAngle / 3
         False -> 0
 
@@ -159,7 +184,7 @@ view model =
         (List.concat
         [
           [ rect w h |> filled (rgb 74 167 43) ]
-        , List.map (\player -> renderImage model.keys model.movementAngle player) (Dict.values model.players)
+        , List.map (\(key, player) -> renderImage model.keys key model.movementAngle player) (Dict.toList model.players)
         ])
     |> toHtml
 
