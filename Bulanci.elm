@@ -19,11 +19,20 @@ type Direction
   | Top
   | Bottom
 
+type alias Bullet =
+  { x : Float
+  , y : Float
+  , dir : Direction
+  , playerId : String
+  }
+
 type alias Keys = 
   { x:Int
   , y:Int
   , p2x : Int
   , p2y : Int
+  , p1Fire : Bool
+  , p2Fire : Bool
   }
 
 type alias Player =
@@ -36,18 +45,20 @@ type alias Model =
   { keys : Keys 
   , size : Size
   , movementAngle : Int
-  , players: Dict.Dict String Player
+  , players : Dict.Dict String Player
+  , bullets : List Bullet
   }
 
 init : Model
 init =
   { size = Size 0 0 
-  , keys = Keys 0 0 0 0
+  , keys = Keys 0 0 0 0 False False
   , movementAngle = 0
   , players = Dict.fromList
     [ ("a", Player 0 0 Top)
     , ("b", Player 100 -100 Left)
     ]
+  , bullets = []
   }
 
 
@@ -68,26 +79,52 @@ updateKeys key keys =
     39 -> { keys | x = 1}
     38 -> { keys | y = 1}
     40 -> { keys | y = -1}
+    13 -> { keys | p1Fire = True }
     (-37) -> { keys | x = 0}
     (-39) -> { keys | x = 0}
     (-38) -> { keys | y = 0}
     (-40) -> { keys | y = 0}
+    (-13) -> { keys | p1Fire = False }
     -- WSAD
     65 -> { keys | p2x = -1}
     68 -> { keys | p2x = 1}
     87 -> { keys | p2y = 1}
     83 -> { keys | p2y = -1}
+    32 -> { keys | p2Fire = True }
     (-65) -> { keys | p2x = 0}
     (-68) -> { keys | p2x = 0}
     (-83) -> { keys | p2y = 0}
     (-87) -> { keys | p2y = 0}
+    (-32) -> { keys | p2Fire = False }
     _ -> keys 
+
+
+updateBullets firingId model =
+  case Dict.get firingId model.players of
+    Just player ->
+      List.append model.bullets [ Bullet player.x player.y player.dir firingId ]
+    Nothing ->
+      model.bullets
+
+
+getFiringId: Int -> Model -> String
+getFiringId key model =
+  case (key, model.keys.p1Fire, model.keys.p2Fire) of
+    (13, False, True) -> "a"
+    (13, False, False) -> "a"
+    (32, True, False) -> "b"
+    (32, False, False) -> "b"
+    _ -> ""
+
 
 update : Msg -> Model -> Model
 update msg model =
   case msg of 
     KeyDown key ->
-      { model | keys = updateKeys key model.keys}
+      { model
+      | keys = updateKeys key model.keys
+      , bullets = updateBullets (getFiringId key model) model
+      }
     KeyUp key ->
       { model | keys = updateKeys -key model.keys }
     SizeChange size ->
@@ -111,8 +148,21 @@ step dt model =
             |> walk model.keys key
             |> physics dt model.keys key))
       (Dict.toList model.players)))
+  , bullets = moveBullets model.bullets model.size
   }
 
+moveBullets: List Bullet -> Size -> List Bullet
+moveBullets bullets size =
+  bullets
+    |> List.filter (\bullet ->
+      (bullet.x <= (toFloat size.width / 2) && bullet.x > (toFloat -size.width ) / 2
+      && bullet.y <= (toFloat size.height / 2) && bullet.y > (toFloat -size.height) / 2))
+    |> List.map (\bullet ->
+      case bullet.dir of
+        Right -> { bullet | x = bullet.x + 4 }
+        Left -> { bullet | x = bullet.x - 4 }
+        Top -> { bullet | y = bullet.y + 4 }
+        Bottom -> { bullet | y = bullet.y - 4 })
 
 physics : Float -> Keys -> String -> Player -> Player
 physics dt keys playerId player =
@@ -144,6 +194,19 @@ walk keys playerId player =
 
 
 -- VIEW 
+
+renderBullet bullet =
+  let
+    width = case bullet.dir of
+      Left -> 10
+      Right -> 10
+      _ -> 5
+    height = case bullet.dir of
+      Top -> 10
+      Bottom -> 10
+      _ -> 5
+  in
+    rect width height |> filled (rgb 0 0 0) |> move (bullet.x, bullet.y)
 
 renderImage keys playerId movementAngle player =
   let
@@ -185,6 +248,7 @@ view model =
         [
           [ rect w h |> filled (rgb 74 167 43) ]
         , List.map (\(key, player) -> renderImage model.keys key model.movementAngle player) (Dict.toList model.players)
+        , List.map renderBullet model.bullets
         ])
     |> toHtml
 
